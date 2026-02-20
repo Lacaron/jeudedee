@@ -1,0 +1,17 @@
+{
+  "name": "Jeu de Dés",
+  "short_name": "JeuDés",
+  "description": "Jeu de dés stratégique pour deux joueurs sur tablette",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

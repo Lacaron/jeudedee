@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen" />
+  <title>Jeu de Dés</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       PLAYER 2 (top, rotated for face-to-face play)
+  ════════════════════════════════════════════════ -->
+  <section class="player-zone player-zone--top" id="zone-player2">
+
+    <div class="player-header">
+      <span class="player-label" id="label-player2">Joueur 2</span>
+    </div>
+
+    <div class="board-wrapper">
+      <!-- side-total FIRST in DOM → after 180° rotation it appears on the RIGHT from P1's view -->
+      <div class="side-total" id="side-total-p2">
+        <span class="side-label">Total</span>
+        <span class="side-value" id="side-value-p2">0</span>
+      </div>
+      <div class="board" id="board-player2">
+        <!-- Column 0 — col-score FIRST so it appears near-center after rotation (mirrors P1) -->
+        <div class="column" id="p2-col-0" data-player="2" data-col="0">
+          <div class="col-score" id="p2-col-score-0">0</div>
+          <div class="cell" id="p2-c0-r0"></div>
+          <div class="cell" id="p2-c0-r1"></div>
+          <div class="cell" id="p2-c0-r2"></div>
+        </div>
+        <!-- Column 1 -->
+        <div class="column" id="p2-col-1" data-player="2" data-col="1">
+          <div class="col-score" id="p2-col-score-1">0</div>
+          <div class="cell" id="p2-c1-r0"></div>
+          <div class="cell" id="p2-c1-r1"></div>
+          <div class="cell" id="p2-c1-r2"></div>
+        </div>
+        <!-- Column 2 -->
+        <div class="column" id="p2-col-2" data-player="2" data-col="2">
+          <div class="col-score" id="p2-col-score-2">0</div>
+          <div class="cell" id="p2-c2-r0"></div>
+          <div class="cell" id="p2-c2-r1"></div>
+          <div class="cell" id="p2-c2-r2"></div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       CENTER HUD
+  ════════════════════════════════════════════════ -->
+  <section class="hud" id="hud">
+
+    <div class="turn-indicator" id="turn-indicator">Tour du Joueur 1</div>
+
+    <div class="die-display" id="die-display">
+      <div class="die" id="current-die">?</div>
+    </div>
+
+    <button class="roll-btn" id="roll-btn">Lancer</button>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       PLAYER 1 (bottom)
+  ════════════════════════════════════════════════ -->
+  <section class="player-zone player-zone--bottom" id="zone-player1">
+
+    <div class="player-header">
+      <span class="player-label" id="label-player1">Joueur 1</span>
+    </div>
+
+    <div class="board-wrapper">
+      <div class="board" id="board-player1">
+        <!-- Column 0 -->
+        <div class="column" id="p1-col-0" data-player="1" data-col="0">
+          <div class="col-score" id="p1-col-score-0">0</div>
+          <div class="cell" id="p1-c0-r2"></div>
+          <div class="cell" id="p1-c0-r1"></div>
+          <div class="cell" id="p1-c0-r0"></div>
+        </div>
+        <!-- Column 1 -->
+        <div class="column" id="p1-col-1" data-player="1" data-col="1">
+          <div class="col-score" id="p1-col-score-1">0</div>
+          <div class="cell" id="p1-c1-r2"></div>
+          <div class="cell" id="p1-c1-r1"></div>
+          <div class="cell" id="p1-c1-r0"></div>
+        </div>
+        <!-- Column 2 -->
+        <div class="column" id="p1-col-2" data-player="1" data-col="2">
+          <div class="col-score" id="p1-col-score-2">0</div>
+          <div class="cell" id="p1-c2-r2"></div>
+          <div class="cell" id="p1-c2-r1"></div>
+          <div class="cell" id="p1-c2-r0"></div>
+        </div>
+      </div>
+      <!-- side-total LAST → appears on the RIGHT side of the screen -->
+      <div class="side-total" id="side-total-p1">
+        <span class="side-label">Total</span>
+        <span class="side-value" id="side-value-p1">0</span>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       START OVERLAY
+  ════════════════════════════════════════════════ -->
+  <div class="overlay hidden" id="overlay-start">
+    <div class="overlay-card">
+      <h2 class="overlay-title">Jeu de Dés</h2>
+      <p class="overlay-subtitle" id="start-message"></p>
+      <button class="roll-btn" id="start-btn">C'est parti!</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       GAME OVER OVERLAY
+  ════════════════════════════════════════════════ -->
+  <div class="overlay hidden" id="overlay-gameover">
+    <div class="overlay-card">
+      <h2 class="overlay-title" id="gameover-title">Partie terminée!</h2>
+      <p class="overlay-subtitle" id="gameover-subtitle">Le Joueur 1 gagne!</p>
+      <div class="overlay-scores">
+        <div class="overlay-score-item">
+          <span>Joueur 1</span>
+          <strong id="final-score-p1">0</strong>
+        </div>
+        <div class="overlay-score-item">
+          <span>Joueur 2</span>
+          <strong id="final-score-p2">0</strong>
+        </div>
+      </div>
+      <button class="roll-btn" id="restart-btn">Rejouer</button>
+    </div>
+  </div>
+
+  <script src="js/game.js"></script>
+</body>
+</html>

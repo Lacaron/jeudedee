@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <!-- Background -->
+  <rect width="192" height="192" rx="36" fill="#1a1a2e"/>
+  <!-- Die body -->
+  <rect x="36" y="36" width="120" height="120" rx="22" fill="#ffffff"/>
+  <!-- Dots: 5-face pattern -->
+  <!-- Top-left -->
+  <circle cx="70" cy="70" r="11" fill="#e94560"/>
+  <!-- Top-right -->
+  <circle cx="122" cy="70" r="11" fill="#e94560"/>
+  <!-- Center -->
+  <circle cx="96" cy="96" r="11" fill="#e94560"/>
+  <!-- Bottom-left -->
+  <circle cx="70" cy="122" r="11" fill="#e94560"/>
+  <!-- Bottom-right -->
+  <circle cx="122" cy="122" r="11" fill="#e94560"/>
+</svg>
