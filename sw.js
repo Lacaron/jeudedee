@@ -1,9 +1,10 @@
-const CACHE_NAME = 'jeudedee-v4';
+const CACHE_NAME = 'jeudedee-0.40';
 
 const ASSETS = [
   './',
   './index.html',
   './css/style.css',
+  './js/bot.js',
   './js/game.js',
   './manifest.json',
 ];

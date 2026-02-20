@@ -15,28 +15,68 @@ const state = {
   },
   currentPlayer: 1,    // 1 or 2
   currentDie:    null, // 1-6 after rolling, null otherwise
-  phase: 'roll',       // 'roll' | 'place' | 'gameover'
+  phase: 'idle',       // 'idle' | 'place' | 'gameover'
+  pausedPhase:   null, // phase saved when paused
+  mode: 'local',       // 'local' | 'bot'
 };
+
+// Session win counters and history — persist across replays; reset on new game / main menu
+const session = { 1: 0, 2: 0, ties: 0, history: [] };
+
+function resetSession() {
+  session[1] = 0;
+  session[2] = 0;
+  session.ties = 0;
+  session.history = [];
+  renderSessionScores();
+}
+
+let botDifficulty = 'medium';
 
 // ═══════════════════════════════════════════════
 //  DOM REFERENCES
 // ═══════════════════════════════════════════════
 
 const dom = {
-  rollBtn:          document.getElementById('roll-btn'),
   currentDie:       document.getElementById('current-die'),
   hud:              document.getElementById('hud'),
   turnIndicator:    document.getElementById('turn-indicator'),
   sideValueP1:      document.getElementById('side-value-p1'),
   sideValueP2:      document.getElementById('side-value-p2'),
-  overlayStart:     document.getElementById('overlay-start'),
-  startMessage:     document.getElementById('start-message'),
-  startBtn:         document.getElementById('start-btn'),
-  overlayGameover:  document.getElementById('overlay-gameover'),
-  gameoverSubtitle: document.getElementById('gameover-subtitle'),
-  finalScoreP1:     document.getElementById('final-score-p1'),
-  finalScoreP2:     document.getElementById('final-score-p2'),
-  restartBtn:       document.getElementById('restart-btn'),
+  overlayAnnounce:  document.getElementById('overlay-announce'),
+  announceText:     document.getElementById('announce-text'),
+  pauseBtnP1:           document.getElementById('pause-btn-p1'),
+  pauseBtnP2:           document.getElementById('pause-btn-p2'),
+  overlayPause:         document.getElementById('overlay-pause'),
+  pauseResumeBtn:       document.getElementById('pause-resume-btn'),
+  pauseInstructionsBtn: document.getElementById('pause-instructions-btn'),
+  pauseNewGameBtn:      document.getElementById('pause-newgame-btn'),
+  pauseMainMenuBtn:     document.getElementById('pause-mainmenu-btn'),
+  overlayInstructions:  document.getElementById('overlay-instructions'),
+  instructionsBtn:      document.getElementById('instructions-btn'),
+  instructionsCloseBtn: document.getElementById('instructions-close-btn'),
+  overlayWelcome:       document.getElementById('overlay-welcome'),
+  playBtn:              document.getElementById('play-btn'),
+  playBotBtn:           document.getElementById('play-bot-btn'),
+  overlayGameover:   document.getElementById('overlay-gameover'),
+  gameoverResultP1:  document.getElementById('gameover-result-p1'),
+  gameoverResultP2:  document.getElementById('gameover-result-p2'),
+  gameoverScoreP1:   document.getElementById('gameover-score-p1'),
+  gameoverScoreP2:   document.getElementById('gameover-score-p2'),
+  billboardTop:      document.getElementById('billboard-top'),
+  billboardBottom:   document.getElementById('billboard-bottom'),
+  restartBtn:           document.getElementById('restart-btn'),
+  gameoverMainMenuBtn:  document.getElementById('gameover-mainmenu-btn'),
+  zoneScoreP1:          document.getElementById('zone-score-p1'),
+  zoneScoreP2:          document.getElementById('zone-score-p2'),
+  sessionRecord:        document.getElementById('session-record'),
+  sessionRecordP2:      document.getElementById('session-record-p2'),
+  leaderboard:          document.getElementById('leaderboard'),
+  botDiffRow:    document.getElementById('bot-diff-row'),
+  diffEasyBtn:   document.getElementById('diff-easy-btn'),
+  diffMediumBtn: document.getElementById('diff-medium-btn'),
+  diffHardBtn:   document.getElementById('diff-hard-btn'),
+  labelPlayer2:  document.getElementById('label-player2'),
 };
 
 // ═══════════════════════════════════════════════
@@ -97,6 +137,50 @@ function rollDie() {
   return Math.ceil(Math.random() * 6);
 }
 
+/**
+ * Auto-roll sequence (staggered):
+ *  1. Immediately rotate HUD to face the current player & show '?'
+ *  2. After 450ms (HUD transition done), spin the die
+ *  3. After spin animation ends, reveal the result and enter 'place' phase
+ */
+function autoRoll() {
+  state.currentDie = null;
+  state.phase = 'idle'; // block placement during roll sequence
+
+  // Step 1: rotate HUD toward current player, show '?'
+  renderTurnIndicator();
+  renderDie();
+  renderClickable();
+
+  // Step 2: after HUD has rotated, spin the die
+  setTimeout(() => {
+    dom.currentDie.classList.add('rolling');
+
+    // Step 3: reveal result once spin finishes
+    dom.currentDie.addEventListener('animationend', () => {
+      dom.currentDie.classList.remove('rolling');
+      state.currentDie = rollDie();
+      state.phase = 'place';
+      render();
+      // In bot mode, trigger bot move automatically after a short pause
+      if (state.mode === 'bot' && state.currentPlayer === 2) {
+        scheduleBotMove();
+      }
+    }, { once: true });
+  }, 450); // slightly longer than the 0.4s CSS HUD transition
+}
+
+/**
+ * Wait a beat so the player can see what the bot rolled, then place the die.
+ */
+function scheduleBotMove() {
+  setTimeout(() => {
+    if (state.phase !== 'place' || state.currentPlayer !== 2) return;
+    const col = botChooseColumn(state.boards, state.currentDie, botDifficulty);
+    placeDie(2, col);
+  }, 900);
+}
+
 function placeDie(player, col) {
   const column = state.boards[player][col];
   const slot = column.indexOf(null);
@@ -109,11 +193,13 @@ function placeDie(player, col) {
   cell.classList.add('placing');
   cell.addEventListener('animationend', () => cell.classList.remove('placing'), { once: true });
 
-  // Destroy matching dice in the physically aligned column of the opponent.
-  // Because P2's board is rotated 180°, their column indices are mirrored:
-  // P1's col 0 (screen-left) aligns with P2's col 2 (also screen-left after rotation).
+  // Destroy matching dice in the visually aligned column of the opponent.
+  // In local (face-to-face) mode P2's board is rotated 180°, so columns mirror:
+  //   P1 col 0 ↔ P2 col 2, etc.
+  // In bot mode both boards face P1 with no rotation, so columns align directly:
+  //   P1 col 0 ↔ P2 col 0, etc.
   const opponent = player === 1 ? 2 : 1;
-  const opponentCol = 2 - col;
+  const opponentCol = state.mode === 'bot' ? col : (2 - col);
   destroyMatchingDice(opponent, opponentCol, state.currentDie);
 
   state.currentDie = null;
@@ -148,11 +234,30 @@ function isBoardFull(player) {
   return state.boards[player].every(col => col.every(cell => cell !== null));
 }
 
+function pauseGame() {
+  if (state.phase === 'idle' || state.phase === 'gameover') return;
+  state.pausedPhase = state.phase;
+  state.phase = 'paused';
+  renderLeaderboard();
+  dom.overlayPause.classList.remove('hidden');
+  renderClickable(); // removes all clickable highlights
+}
+
+function resumeGame() {
+  state.phase = state.pausedPhase;
+  state.pausedPhase = null;
+  dom.overlayPause.classList.add('hidden');
+  render();
+  // Re-trigger the bot if we paused while it was about to place its die
+  if (state.mode === 'bot' && state.currentPlayer === 2 && state.phase === 'place') {
+    scheduleBotMove();
+  }
+}
+
 function switchTurn() {
   state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
   state.currentDie = null;
-  state.phase = 'roll';
-  render();
+  autoRoll();
 }
 
 function endGame() {
@@ -160,19 +265,58 @@ function endGame() {
 
   const s1 = calcTotalScore(1);
   const s2 = calcTotalScore(2);
-  dom.finalScoreP1.textContent = s1;
-  dom.finalScoreP2.textContent = s2;
 
+  // Update session counters and history
+  if (s1 > s2)      session[1]++;
+  else if (s2 > s1) session[2]++;
+  else              session.ties++;
+  session.history.push({ s1, s2 });
+  renderSessionScores();
+
+  // Determine each player's outcome
+  let label1, label2, color1, color2;
   if (s1 > s2) {
-    dom.gameoverSubtitle.textContent = 'Joueur 1 gagne!';
-    dom.gameoverSubtitle.style.color = 'var(--clr-p1)';
+    label1 = 'Vous avez gagné!';  color1 = 'var(--clr-p1)';
+    label2 = 'Vous avez perdu!'; color2 = 'var(--clr-text-muted)';
   } else if (s2 > s1) {
-    dom.gameoverSubtitle.textContent = 'Joueur 2 gagne!';
-    dom.gameoverSubtitle.style.color = 'var(--clr-p2)';
+    label1 = 'Vous avez perdu!'; color1 = 'var(--clr-text-muted)';
+    label2 = 'Vous avez gagné!';  color2 = 'var(--clr-p2)';
   } else {
-    dom.gameoverSubtitle.textContent = 'Égalité!';
-    dom.gameoverSubtitle.style.color = 'var(--clr-accent2)';
+    label1 = 'Égalité!'; color1 = 'var(--clr-accent2)';
+    label2 = 'Égalité!'; color2 = 'var(--clr-accent2)';
   }
+
+  dom.gameoverResultP1.textContent = label1;
+  dom.gameoverResultP1.style.color = color1;
+  dom.gameoverScoreP1.textContent  = s1;
+  dom.gameoverScoreP1.style.color  = color1;
+
+  dom.gameoverResultP2.textContent = label2;
+  dom.gameoverResultP2.style.color = color2;
+  dom.gameoverScoreP2.textContent  = s2;
+  dom.gameoverScoreP2.style.color  = color2;
+
+  // Center billboard — both players see both scores
+  const billboardHtml =
+    `<span style="color:var(--clr-p1)">J1\u00a0${s1}</span>` +
+    `<span class="billboard-vs">-</span>` +
+    `<span style="color:var(--clr-p2)">${s2}\u00a0J2</span>`;
+  dom.billboardTop.innerHTML    = billboardHtml;
+  dom.billboardBottom.innerHTML = billboardHtml;
+
+  // Session record — two-line format: label then score row
+  const sessionHtml =
+    `<div class="sr-label">Session</div>` +
+    `<div class="sr-scores">` +
+    `<span style="color:var(--clr-p1)">J1</span>\u00a0${session[1]}` +
+    `\u00a0-\u00a0` +
+    `${session[2]}\u00a0<span style="color:var(--clr-p2)">J2</span>` +
+    `</div>` +
+    (session.ties > 0
+      ? `<div class="sr-ties">${session.ties}\u00a0\u00e9galit\u00e9${session.ties > 1 ? 's' : ''}</div>`
+      : '');
+  dom.sessionRecord.innerHTML   = sessionHtml;
+  dom.sessionRecordP2.innerHTML = sessionHtml;
 
   dom.overlayGameover.classList.remove('hidden');
   render();
@@ -184,22 +328,35 @@ function restartGame() {
     2: [ [null, null, null], [null, null, null], [null, null, null] ],
   };
   state.currentDie = null;
-  state.phase = 'roll';
+  state.phase = 'idle';
   dom.overlayGameover.classList.add('hidden');
   render();
   chooseStartingPlayer();
 }
 
+/**
+ * Pick a random starting player, show a full-screen blurred announcement
+ * with text anchored to that player's half, then auto-roll after 2 seconds.
+ */
 function chooseStartingPlayer() {
   state.currentPlayer = Math.random() < 0.5 ? 1 : 2;
-  state.phase = 'roll';
   state.currentDie = null;
+  state.phase = 'idle';
+  render();
 
   const p = state.currentPlayer;
   const color = p === 1 ? 'var(--clr-p1)' : 'var(--clr-p2)';
-  dom.startMessage.innerHTML =
-    `Le <span style="color:${color}; font-weight:900;">Joueur ${p}</span> commence!`;
-  dom.overlayStart.classList.remove('hidden');
+
+  // Position text in the starting player's half of the screen
+  dom.announceText.innerHTML =
+    `<span style="color:${color}">Joueur ${p}<br>commence!</span>`;
+  dom.announceText.className = `announce-text for-p${p}`;
+  dom.overlayAnnounce.classList.remove('hidden');
+
+  setTimeout(() => {
+    dom.overlayAnnounce.classList.add('hidden');
+    autoRoll();
+  }, 2000);
 }
 
 // ═══════════════════════════════════════════════
@@ -249,9 +406,7 @@ function renderClickable() {
 
 function renderTurnIndicator() {
   const p = state.currentPlayer;
-  dom.turnIndicator.textContent = state.phase === 'roll'
-    ? `Joueur ${p} — Lancez le dé!`
-    : `Joueur ${p} — Choisissez une colonne`;
+  dom.turnIndicator.textContent = `Joueur ${p} — Choisissez une colonne`;
   dom.turnIndicator.className = `turn-indicator p${p}`;
   dom.hud.className = `hud p${p}`;
 }
@@ -263,9 +418,52 @@ function renderScores() {
   dom.sideValueP2.textContent = s2;
 }
 
+function renderSessionScores() {
+  const text = `J1\u00a0${session[1]}\u00a0-\u00a0${session[2]}\u00a0J2`;
+  dom.zoneScoreP1.textContent = text;
+  dom.zoneScoreP2.textContent = text;
+}
+
+function lbRow(leftVal, rightVal, cls, isTie = false) {
+  const sep = isTie
+    ? `<span class="lb-sep lb-sep--tie">=</span>`
+    : `<span class="lb-sep">-</span>`;
+  const p1Color = isTie ? 'var(--clr-accent2)' : 'var(--clr-p1)';
+  const p2Color = isTie ? 'var(--clr-accent2)' : 'var(--clr-p2)';
+  return `<div class="lb-row ${cls}">` +
+    `<span class="lb-left"><span style="color:${p1Color}">J1</span>\u00a0${leftVal}</span>` +
+    sep +
+    `<span class="lb-right">${rightVal}\u00a0<span style="color:${p2Color}">J2</span></span>` +
+    `</div>`;
+}
+
+function renderLeaderboard() {
+  // Summary: wins + ties count if any
+  let html = `<div class="lb-title">Session</div>`;
+  html += lbRow(session[1], session[2], 'lb-summary');
+  if (session.ties > 0) {
+    html += `<div class="lb-ties-note">${session.ties}\u00a0\u00e9galit\u00e9${session.ties > 1 ? 's' : ''}</div>`;
+  }
+
+  if (session.history.length > 0) {
+    html += `<div class="lb-history">`;
+    session.history.forEach(({ s1, s2 }) => {
+      html += lbRow(s1, s2, 'lb-game', s1 === s2);
+    });
+    html += `</div>`;
+  } else {
+    html += `<p class="lb-empty">Aucune partie compl\u00e9t\u00e9e</p>`;
+  }
+
+  dom.leaderboard.innerHTML = html;
+}
+
 function renderDie() {
   dom.currentDie.textContent = state.currentDie !== null ? state.currentDie : '?';
-  dom.rollBtn.disabled = state.phase !== 'roll';
+  // Show pause buttons throughout active play; hide only when game is over
+  const hidePause = state.phase === 'gameover';
+  dom.pauseBtnP1.classList.toggle('hidden', hidePause);
+  dom.pauseBtnP2.classList.toggle('hidden', hidePause);
 }
 
 function render() {
@@ -274,6 +472,7 @@ function render() {
   renderClickable();
   renderTurnIndicator();
   renderScores();
+  renderSessionScores();
   renderDie();
 }
 
@@ -281,26 +480,110 @@ function render() {
 //  EVENT LISTENERS
 // ═══════════════════════════════════════════════
 
-dom.rollBtn.addEventListener('click', () => {
-  if (state.phase !== 'roll') return;
+// Track where instructions were opened from so close returns to the right screen
+let instructionsReturnTo = 'welcome'; // 'welcome' | 'pause'
 
-  state.currentDie = rollDie();
-  state.phase = 'place';
+dom.pauseBtnP1.addEventListener('click', pauseGame);
+dom.pauseBtnP2.addEventListener('click', pauseGame);
 
-  dom.currentDie.classList.add('rolling');
-  dom.currentDie.addEventListener('animationend', () => {
-    dom.currentDie.classList.remove('rolling');
-  }, { once: true });
+dom.pauseResumeBtn.addEventListener('click', resumeGame);
 
-  render();
+dom.pauseInstructionsBtn.addEventListener('click', () => {
+  instructionsReturnTo = 'pause';
+  dom.overlayInstructions.classList.remove('hidden');
 });
 
-dom.startBtn.addEventListener('click', () => {
-  dom.overlayStart.classList.add('hidden');
+dom.pauseNewGameBtn.addEventListener('click', () => {
+  dom.overlayPause.classList.add('hidden');
+  state.pausedPhase = null;
+  resetSession();
+  restartGame();
+});
+
+dom.pauseMainMenuBtn.addEventListener('click', () => {
+  dom.overlayPause.classList.add('hidden');
+  state.pausedPhase = null;
+  resetSession();
+  state.phase = 'idle';
+  state.mode = 'local';
+  document.body.classList.remove('bot-mode');
+  dom.labelPlayer2.textContent = 'Joueur 2';
+  state.boards = {
+    1: [ [null, null, null], [null, null, null], [null, null, null] ],
+    2: [ [null, null, null], [null, null, null], [null, null, null] ],
+  };
+  state.currentDie = null;
   render();
+  dom.overlayWelcome.classList.remove('hidden');
+});
+
+dom.instructionsBtn.addEventListener('click', () => {
+  instructionsReturnTo = 'welcome';
+  dom.overlayInstructions.classList.remove('hidden');
+});
+
+dom.instructionsCloseBtn.addEventListener('click', () => {
+  dom.overlayInstructions.classList.add('hidden');
+  if (instructionsReturnTo === 'pause') {
+    dom.overlayPause.classList.remove('hidden');
+  }
+  instructionsReturnTo = 'welcome';
+});
+
+dom.playBtn.addEventListener('click', () => {
+  state.mode = 'local';
+  document.body.classList.remove('bot-mode');
+  dom.overlayWelcome.classList.add('hidden');
+  chooseStartingPlayer();
+});
+
+dom.playBotBtn.addEventListener('click', () => {
+  state.mode = 'bot';
+  document.body.classList.add('bot-mode');
+  dom.labelPlayer2.textContent = `Bot · ${diffLabels[botDifficulty]}`;
+  dom.overlayWelcome.classList.add('hidden');
+  chooseStartingPlayer();
+});
+
+function setDiffHighlight(selected) {
+  [dom.diffEasyBtn, dom.diffMediumBtn, dom.diffHardBtn].forEach(btn =>
+    btn.classList.remove('menu-btn--diff-selected')
+  );
+  selected.classList.add('menu-btn--diff-selected');
+}
+
+const diffLabels = { easy: 'Facile', medium: 'Moyen', hard: 'Difficile' };
+
+dom.diffEasyBtn.addEventListener('click', () => {
+  setDiffHighlight(dom.diffEasyBtn);
+  botDifficulty = 'easy';
+});
+dom.diffMediumBtn.addEventListener('click', () => {
+  setDiffHighlight(dom.diffMediumBtn);
+  botDifficulty = 'medium';
+});
+dom.diffHardBtn.addEventListener('click', () => {
+  setDiffHighlight(dom.diffHardBtn);
+  botDifficulty = 'hard';
 });
 
 dom.restartBtn.addEventListener('click', restartGame);
+
+dom.gameoverMainMenuBtn.addEventListener('click', () => {
+  dom.overlayGameover.classList.add('hidden');
+  resetSession();
+  state.phase = 'idle';
+  state.mode = 'local';
+  document.body.classList.remove('bot-mode');
+  dom.labelPlayer2.textContent = 'Joueur 2';
+  state.boards = {
+    1: [ [null, null, null], [null, null, null], [null, null, null] ],
+    2: [ [null, null, null], [null, null, null], [null, null, null] ],
+  };
+  state.currentDie = null;
+  render();
+  dom.overlayWelcome.classList.remove('hidden');
+});
 
 document.getElementById('board-player1').addEventListener('click', (e) => {
   if (state.currentPlayer !== 1 || state.phase !== 'place') return;
@@ -310,6 +593,7 @@ document.getElementById('board-player1').addEventListener('click', (e) => {
 });
 
 document.getElementById('board-player2').addEventListener('click', (e) => {
+  if (state.mode === 'bot') return; // bot controls P2
   if (state.currentPlayer !== 2 || state.phase !== 'place') return;
   const col = e.target.closest('.column');
   if (!col || !col.classList.contains('clickable')) return;
@@ -333,4 +617,3 @@ if ('serviceWorker' in navigator) {
 // ═══════════════════════════════════════════════
 
 render();
-chooseStartingPlayer();

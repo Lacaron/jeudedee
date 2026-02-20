@@ -64,6 +64,7 @@ body {
   width: 100%;
   flex: 1;
   justify-content: center;
+  position: relative;
 }
 
 /* Player 2 zone is rotated 180° for face-to-face play */
@@ -262,10 +263,10 @@ body {
 ════════════════════════════════════════════════ */
 .hud {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(16px, 4vw, 40px);
+  gap: clamp(4px, 1vw, 10px);
   flex-shrink: 0;
   padding: 4px 0;
   transition: transform 0.4s ease;
@@ -276,17 +277,72 @@ body {
 }
 
 .turn-indicator {
-  font-size: clamp(13px, 2vw, 18px);
+  font-size: clamp(12px, 1.8vw, 16px);
   font-weight: 600;
   color: var(--clr-text-muted);
   letter-spacing: 0.04em;
-  min-width: 140px;
   text-align: center;
   transition: color 0.3s;
 }
 
 .turn-indicator.p1 { color: var(--clr-p1); }
 .turn-indicator.p2 { color: var(--clr-p2); }
+
+/* Static pause button footer — one per player zone */
+.player-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(4px, 0.8vw, 8px);
+  width: 100%;
+  padding: clamp(4px, 1vw, 10px) 0 0;
+}
+
+/* Live score shown above the pause button */
+.zone-score {
+  font-size: clamp(11px, 1.6vw, 15px);
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+/* Pause button */
+.pause-btn {
+  background: transparent;
+  border: 2px solid var(--clr-border);
+  border-radius: 50%;
+  width: clamp(32px, 5vw, 46px);
+  height: clamp(32px, 5vw, 46px);
+  font-size: clamp(13px, 2vw, 18px);
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, color 0.2s, transform 0.1s;
+  line-height: 1;
+}
+
+.pause-btn:active {
+  transform: scale(0.9);
+}
+
+.pause-btn:hover {
+  border-color: var(--clr-text-muted);
+  color: var(--clr-text);
+}
+
+.pause-btn.hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Pause overlay z-index — above game, below instructions */
+#overlay-pause {
+  z-index: 105;
+}
 
 /* ═══════════════════════════════════════════════
    DIE DISPLAY (center)
@@ -354,24 +410,249 @@ body {
 }
 
 /* ═══════════════════════════════════════════════
-   GAME OVER OVERLAY
+   START ANNOUNCEMENT (full-screen, text on player's half)
+════════════════════════════════════════════════ */
+#overlay-announce {
+  z-index: 50; /* above game, below gameover */
+}
+
+#overlay-instructions {
+  z-index: 110; /* above welcome overlay */
+}
+
+/* Text block anchored to the starting player's half of the screen */
+.announce-text {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 42%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(28px, 6vw, 60px);
+  font-weight: 900;
+  text-align: center;
+  line-height: 1.3;
+  animation: fadeInAnnounce 0.35s ease;
+}
+
+/* P1 is at the bottom of the screen */
+.announce-text.for-p1 { bottom: 0; }
+
+/* P2 is at the top — rotate so P2 reads it right-side up */
+.announce-text.for-p2 {
+  top: 0;
+  transform: rotate(180deg);
+}
+
+@keyframes fadeInAnnounce {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* P2 variant must keep the rotation while animating */
+.announce-text.for-p2 {
+  animation: fadeInAnnounceP2 0.35s ease;
+}
+
+@keyframes fadeInAnnounceP2 {
+  from { opacity: 0; transform: rotate(180deg) scale(0.9); }
+  to   { opacity: 1; transform: rotate(180deg) scale(1); }
+}
+
+/* ═══════════════════════════════════════════════
+   WELCOME MENU BUTTONS
+════════════════════════════════════════════════ */
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+/* Difficulty sub-row (appears below "Contre le bot") */
+.bot-diff-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-top: -6px; /* pull up closer to the bot button */
+}
+
+.menu-btn--diff {
+  flex: 1;
+  padding: clamp(7px, 1.2vw, 11px) 0;
+  font-size: clamp(11px, 1.6vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--clr-bg);
+  color: var(--clr-text-muted);
+  border: 2px solid var(--clr-border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.menu-btn--diff-selected {
+  border-color: var(--clr-accent);
+  color: var(--clr-text);
+}
+
+.menu-btn {
+  border: none;
+  border-radius: 12px;
+  padding: clamp(12px, 2vw, 18px) clamp(24px, 4vw, 40px);
+  font-size: clamp(15px, 2.5vw, 20px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--clr-border);
+  color: var(--clr-text-muted);
+  cursor: not-allowed;
+}
+
+.menu-btn--primary {
+  background: var(--clr-accent);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(233, 69, 96, 0.4);
+  transition: background 0.15s, transform 0.1s;
+}
+
+.menu-btn--primary:active {
+  transform: scale(0.97);
+}
+
+.menu-btn--secondary {
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  cursor: pointer;
+  border: 2px solid var(--clr-border);
+  transition: background 0.15s, transform 0.1s;
+}
+
+.menu-btn--secondary:active {
+  transform: scale(0.97);
+}
+
+.menu-btn--disabled {
+  opacity: 0.35;
+}
+
+/* ── Instructions card ── */
+.instructions-card {
+  max-width: min(680px, 92vw);
+  max-height: 88dvh;
+  overflow-y: auto;
+  gap: clamp(20px, 3vw, 32px);
+  text-align: left;
+}
+
+.instr-section {
+  display: flex;
+  gap: clamp(14px, 2.5vw, 24px);
+  align-items: flex-start;
+  width: 100%;
+}
+
+.instr-icon {
+  font-size: clamp(28px, 5vw, 42px);
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.instr-section strong {
+  display: block;
+  font-size: clamp(18px, 2.8vw, 26px);
+  color: var(--clr-text);
+  margin-bottom: 6px;
+}
+
+.instr-section p {
+  font-size: clamp(15px, 2.2vw, 20px);
+  color: var(--clr-text-muted);
+  line-height: 1.55;
+}
+
+.instr-example {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: var(--clr-bg);
+  border-radius: 8px;
+  font-size: clamp(14px, 2vw, 18px) !important;
+  color: var(--clr-accent2) !important;
+  font-weight: 700;
+}
+
+.instr-calc {
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: var(--clr-bg);
+  border-radius: 8px;
+  font-size: clamp(13px, 1.9vw, 17px) !important;
+  color: var(--clr-text-muted) !important;
+  line-height: 1.7;
+}
+
+.instr-calc span {
+  color: var(--clr-accent2);
+  font-weight: 700;
+}
+
+.instr-diff-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.instr-diff-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: clamp(14px, 2vw, 18px);
+  color: var(--clr-text-muted);
+  text-align: left;
+}
+
+.instr-diff-badge {
+  flex-shrink: 0;
+  padding: 3px 12px;
+  border-radius: 20px;
+  font-size: clamp(11px, 1.5vw, 14px);
+  font-weight: 700;
+  border: 2px solid;
+  width: 6em;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.instr-diff-badge.easy   { border-color: #4caf50; color: #4caf50; }
+.instr-diff-badge.medium { border-color: var(--clr-accent); color: var(--clr-accent); }
+.instr-diff-badge.hard   { border-color: var(--clr-p2); color: var(--clr-p2); }
+
+/* ═══════════════════════════════════════════════
+   OVERLAYS (welcome, announce, gameover)
 ════════════════════════════════════════════════ */
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 10, 20, 0.85);
+  background: rgba(10, 10, 20, 0.88);
   backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
-  transition: opacity 0.3s;
 }
 
 .overlay.hidden {
   display: none;
 }
 
+/* Welcome screen card */
 .overlay-card {
   background: var(--clr-surface);
   border: 2px solid var(--clr-border);
@@ -385,33 +666,252 @@ body {
   text-align: center;
 }
 
+/* Pause card: allow vertical scroll if leaderboard is long */
+.pause-card {
+  max-height: 90dvh;
+  overflow-y: auto;
+  min-width: clamp(300px, 50vw, 480px);
+}
+
+/* ── Leaderboard (inside pause menu) ── */
+.leaderboard {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 2px solid var(--clr-border);
+  border-bottom: 2px solid var(--clr-border);
+  padding: 14px 0;
+}
+
+.lb-sep {
+  color: var(--clr-border);
+  font-weight: 400;
+  padding: 0 2px;
+}
+
+.lb-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 30dvh;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+/* Both summary and game rows share the same symmetric layout */
+.lb-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 1.2vw, 10px);
+  font-weight: 600;
+  width: 100%;
+}
+
+.lb-left {
+  min-width: 4.5em;
+  text-align: right;
+}
+
+.lb-right {
+  min-width: 4.5em;
+  text-align: left;
+}
+
+.lb-sep--tie {
+  color: var(--clr-accent2);
+  font-weight: 700;
+}
+
+/* Small tie count note below summary */
+.lb-ties-note {
+  text-align: center;
+  font-size: clamp(11px, 1.6vw, 14px);
+  color: var(--clr-accent2);
+  font-weight: 600;
+  margin-top: -4px;
+}
+
+.lb-summary {
+  font-size: clamp(16px, 2.5vw, 22px);
+}
+
+.lb-game {
+  font-size: clamp(13px, 2vw, 17px);
+  color: var(--clr-text-muted);
+}
+
+.lb-empty {
+  font-size: clamp(13px, 1.8vw, 15px);
+  color: var(--clr-text-muted);
+  font-style: italic;
+}
+
+.lb-title {
+  text-align: center;
+  font-size: clamp(10px, 1.4vw, 13px);
+  font-weight: 700;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
 .overlay-title {
   font-size: clamp(24px, 4vw, 40px);
   font-weight: 900;
 }
 
-.overlay-subtitle {
-  font-size: clamp(18px, 3vw, 28px);
-  color: var(--clr-accent2);
-  font-weight: 700;
-}
-
-.overlay-scores {
-  display: flex;
-  gap: 40px;
-}
-
-.overlay-score-item {
+/* ── Game over split-screen halves ── */
+.gameover-half {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 36%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  font-size: clamp(13px, 2vw, 18px);
+  justify-content: center;
+  gap: clamp(4px, 1vw, 12px);
+  animation: fadeInAnnounce 0.4s ease;
+}
+
+.gameover-half--bottom { bottom: 0; }
+
+.gameover-half--top {
+  top: 0;
+  animation: fadeInAnnounceP2 0.4s ease;
+  transform: rotate(180deg);
+}
+
+.gameover-result {
+  font-size: clamp(18px, 3.5vw, 40px);
+  font-weight: 900;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.gameover-score {
+  font-size: clamp(36px, 9vw, 80px);
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Center billboard + restart */
+.gameover-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(6px, 1.2vw, 14px);
+  width: 100%;
+}
+
+.gameover-billboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 2vw, 20px);
+  font-size: clamp(13px, 2vw, 20px);
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  width: 100%;
+  padding: 0 clamp(16px, 4vw, 40px);
+  letter-spacing: 0.04em;
+}
+
+.gameover-billboard--p2 { transform: rotate(180deg); }
+
+/* Session record on P2's side — rotated to match the P2 billboard */
+#session-record-p2 { transform: rotate(180deg); }
+
+.billboard-vs {
+  color: var(--clr-border);
+  font-size: 0.85em;
+}
+
+.gameover-sep {
+  width: clamp(100px, 28vw, 260px);
+  height: 2px;
+  background: var(--clr-border);
+  border-radius: 2px;
+}
+
+/* Session win record — shown on game over screen */
+.session-record {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: clamp(12px, 1.8vw, 16px);
+  font-weight: 600;
+  color: var(--clr-text);
+  letter-spacing: 0.04em;
+  text-align: center;
+  margin-top: clamp(4px, 0.8vw, 8px);
+}
+
+.sr-label {
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   color: var(--clr-text-muted);
 }
 
-.overlay-score-item strong {
-  font-size: clamp(28px, 5vw, 48px);
-  font-weight: 900;
-  color: var(--clr-text);
+.sr-ties {
+  font-size: 0.72em;
+  color: var(--clr-accent2);
 }
+
+/* ═══════════════════════════════════════════════
+   BOT MODE — P2 board faces P1 (no 180° flip)
+════════════════════════════════════════════════ */
+
+/* P2 zone: cancel the rotation so P1 can read the bot's board */
+.bot-mode .player-zone--top {
+  transform: none;
+}
+
+/* P2 side-total was DOM-first (left) because rotation used to flip it to right.
+   Without rotation, reverse the wrapper so side-total ends up on the right,
+   matching P1's layout. */
+.bot-mode #zone-player2 .board-wrapper {
+  flex-direction: row-reverse;
+}
+
+/* P2 columns: col-score is DOM-first, so without rotation it sits at the top.
+   Reverse column direction so col-score drops to the bottom (near HUD),
+   mirroring P1's column layout. */
+.bot-mode #zone-player2 .column {
+  flex-direction: column-reverse;
+}
+
+/* Bot has no human to pause — hide P2's pause button */
+.bot-mode #pause-btn-p2 {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* HUD: stay upright even on the bot's turn */
+.bot-mode .hud.p2 {
+  transform: none;
+}
+
+/* Start announcement for P2 in bot mode: appears at top, no rotation */
+.bot-mode .announce-text.for-p2 {
+  transform: none;
+  animation: fadeInAnnounce 0.35s ease;
+}
+
+/* Game over in bot mode: hide P2 half, P2 billboard, separator above buttons, P2 session record */
+.bot-mode .gameover-half--top        { display: none; }
+.bot-mode #billboard-top             { display: none; }
+.bot-mode #billboard-top + .gameover-sep { display: none; }
+.bot-mode #session-record-p2         { display: none; }
+
+

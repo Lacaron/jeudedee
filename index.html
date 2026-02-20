@@ -53,6 +53,11 @@
       </div>
     </div>
 
+    <div class="player-footer">
+      <div class="zone-score" id="zone-score-p2">J1&nbsp;0 - 0&nbsp;J2</div>
+      <button class="pause-btn hidden" id="pause-btn-p2" aria-label="Pause">⏸</button>
+    </div>
+
   </section>
 
   <!-- ═══════════════════════════════════════════
@@ -65,8 +70,6 @@
     <div class="die-display" id="die-display">
       <div class="die" id="current-die">?</div>
     </div>
-
-    <button class="roll-btn" id="roll-btn">Lancer</button>
 
   </section>
 
@@ -110,40 +113,167 @@
       </div>
     </div>
 
+    <div class="player-footer">
+      <div class="zone-score" id="zone-score-p1">J1&nbsp;0 - 0&nbsp;J2</div>
+      <button class="pause-btn hidden" id="pause-btn-p1" aria-label="Pause">⏸</button>
+    </div>
+
   </section>
 
   <!-- ═══════════════════════════════════════════
-       START OVERLAY
+       PAUSE OVERLAY
   ════════════════════════════════════════════════ -->
-  <div class="overlay hidden" id="overlay-start">
-    <div class="overlay-card">
-      <h2 class="overlay-title">Jeu de Dés</h2>
-      <p class="overlay-subtitle" id="start-message"></p>
-      <button class="roll-btn" id="start-btn">C'est parti!</button>
+  <div class="overlay hidden" id="overlay-pause">
+    <div class="overlay-card pause-card">
+      <h2 class="overlay-title">Pause</h2>
+      <div class="leaderboard" id="leaderboard"></div>
+      <div class="menu-buttons">
+        <button class="menu-btn menu-btn--primary" id="pause-resume-btn">Retour au jeu</button>
+        <button class="menu-btn menu-btn--secondary" id="pause-instructions-btn">Instructions</button>
+        <button class="menu-btn menu-btn--secondary" id="pause-newgame-btn">Nouvelle partie</button>
+        <button class="menu-btn menu-btn--secondary" id="pause-mainmenu-btn">Retour au menu</button>
+      </div>
     </div>
   </div>
 
   <!-- ═══════════════════════════════════════════
-       GAME OVER OVERLAY
+       INSTRUCTIONS OVERLAY
   ════════════════════════════════════════════════ -->
-  <div class="overlay hidden" id="overlay-gameover">
-    <div class="overlay-card">
-      <h2 class="overlay-title" id="gameover-title">Partie terminée!</h2>
-      <p class="overlay-subtitle" id="gameover-subtitle">Le Joueur 1 gagne!</p>
-      <div class="overlay-scores">
-        <div class="overlay-score-item">
-          <span>Joueur 1</span>
-          <strong id="final-score-p1">0</strong>
-        </div>
-        <div class="overlay-score-item">
-          <span>Joueur 2</span>
-          <strong id="final-score-p2">0</strong>
+  <div class="overlay hidden" id="overlay-instructions">
+    <div class="overlay-card instructions-card">
+      <h2 class="overlay-title">Comment jouer</h2>
+
+      <div class="instr-section">
+        <div class="instr-icon">🎯</div>
+        <div>
+          <strong>Objectif</strong>
+          <p>Marquez plus de points que votre adversaire en remplissant votre grille 3×3.</p>
         </div>
       </div>
-      <button class="roll-btn" id="restart-btn">Rejouer</button>
+
+      <div class="instr-section">
+        <div class="instr-icon">🎲</div>
+        <div>
+          <strong>Tour de jeu</strong>
+          <p>Un dé est lancé automatiquement. Choisissez une colonne pour y placer votre dé.</p>
+        </div>
+      </div>
+
+      <div class="instr-section">
+        <div class="instr-icon">✖️</div>
+        <div>
+          <strong>Multiplication</strong>
+          <p>Des dés identiques dans la même colonne se multiplient&nbsp;!</p>
+          <p class="instr-example">
+            <span>2 dés pareils&nbsp;→ valeur&nbsp;×&nbsp;2</span>
+            <span>3 dés pareils&nbsp;→ valeur&nbsp;×&nbsp;3</span>
+          </p>
+          <p class="instr-calc">Exemple&nbsp;: colonne&nbsp;[4,&nbsp;4,&nbsp;2]<br>→ 4×2&nbsp;+&nbsp;4×2&nbsp;+&nbsp;2×1&nbsp;=&nbsp;<span>18&nbsp;pts</span></p>
+        </div>
+      </div>
+
+      <div class="instr-section">
+        <div class="instr-icon">💥</div>
+        <div>
+          <strong>Destruction</strong>
+          <p>Placer un dé détruit tous les dés identiques dans la colonne alignée de l'adversaire.</p>
+        </div>
+      </div>
+
+      <div class="instr-section">
+        <div class="instr-icon">🏆</div>
+        <div>
+          <strong>Fin de partie</strong>
+          <p>La partie se termine quand un plateau est plein. Le joueur avec le score total le plus élevé gagne.</p>
+        </div>
+      </div>
+
+      <div class="instr-section">
+        <div class="instr-icon">🤖</div>
+        <div>
+          <strong>Difficultés du bot</strong>
+          <div class="instr-diff-list">
+            <div class="instr-diff-row">
+              <span class="instr-diff-badge easy">Facile</span>
+              <span>Choisit une colonne au hasard.</span>
+            </div>
+            <div class="instr-diff-row">
+              <span class="instr-diff-badge medium">Moyen</span>
+              <span>Favorise les combos et cherche à détruire vos dés.</span>
+            </div>
+            <div class="instr-diff-row">
+              <span class="instr-diff-badge hard">Difficile</span>
+              <span>Calcule le coup optimal&nbsp;: maximise son gain et votre perte de points.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="menu-btn menu-btn--primary" id="instructions-close-btn">Fermer</button>
     </div>
   </div>
 
+  <!-- ═══════════════════════════════════════════
+       START ANNOUNCEMENT OVERLAY (full screen blur)
+  ════════════════════════════════════════════════ -->
+  <div class="overlay hidden" id="overlay-announce">
+    <div class="announce-text" id="announce-text"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       WELCOME OVERLAY
+  ════════════════════════════════════════════════ -->
+  <div class="overlay" id="overlay-welcome">
+    <div class="overlay-card">
+      <h1 class="overlay-title">Jeu de Dés</h1>
+      <div class="menu-buttons">
+        <button class="menu-btn menu-btn--secondary" id="instructions-btn">Instructions</button>
+        <button class="menu-btn menu-btn--primary" id="play-btn">Jouer</button>
+        <button class="menu-btn menu-btn--secondary" id="play-bot-btn">Contre le bot</button>
+        <div class="bot-diff-row" id="bot-diff-row">
+          <button class="menu-btn--diff" id="diff-easy-btn">Facile</button>
+          <button class="menu-btn--diff menu-btn--diff-selected" id="diff-medium-btn">Moyen</button>
+          <button class="menu-btn--diff" id="diff-hard-btn">Difficile</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       GAME OVER OVERLAY (split-screen)
+  ════════════════════════════════════════════════ -->
+  <div class="overlay hidden" id="overlay-gameover">
+
+    <!-- P2 result — top half, rotated so P2 reads it right-side up -->
+    <div class="gameover-half gameover-half--top">
+      <div class="gameover-result" id="gameover-result-p2"></div>
+      <div class="gameover-score" id="gameover-score-p2"></div>
+    </div>
+    
+    <!-- Center billboard + restart button -->
+    <div class="gameover-center">
+      <div class="session-record" id="session-record-p2"></div>
+      <!-- Scores readable by P2 (rotated 180°) -->
+      <div class="gameover-billboard gameover-billboard--p2" id="billboard-top"></div>
+      <div class="gameover-sep"></div>
+      <button class="menu-btn menu-btn--primary" id="restart-btn">Rejouer</button>
+      <button class="menu-btn menu-btn--secondary" id="gameover-mainmenu-btn">Menu principal</button>
+      <div class="gameover-sep"></div>
+      <!-- Scores readable by P1 (normal) -->
+      <div class="gameover-billboard gameover-billboard--p1" id="billboard-bottom"></div>
+      <!-- Session record — readable by P1 -->
+      <div class="session-record" id="session-record"></div>
+    </div>
+
+    <!-- P1 result — bottom half -->
+    <div class="gameover-half gameover-half--bottom">
+      <div class="gameover-result" id="gameover-result-p1"></div>
+      <div class="gameover-score" id="gameover-score-p1"></div>
+    </div>
+
+  </div>
+
+  <script src="js/bot.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>
