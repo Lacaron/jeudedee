@@ -25,6 +25,7 @@ const state = {
 const dom = {
   rollBtn:          document.getElementById('roll-btn'),
   currentDie:       document.getElementById('current-die'),
+  hud:              document.getElementById('hud'),
   turnIndicator:    document.getElementById('turn-indicator'),
   sideValueP1:      document.getElementById('side-value-p1'),
   sideValueP2:      document.getElementById('side-value-p2'),
@@ -252,6 +253,7 @@ function renderTurnIndicator() {
     ? `Joueur ${p} — Lancez le dé!`
     : `Joueur ${p} — Choisissez une colonne`;
   dom.turnIndicator.className = `turn-indicator p${p}`;
+  dom.hud.className = `hud p${p}`;
 }
 
 function renderScores() {
