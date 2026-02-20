@@ -164,7 +164,13 @@ body {
   cursor: pointer;
 }
 
-.column.clickable:hover,
+@media (hover: hover) {
+  .column.clickable:hover {
+    background: rgba(79, 195, 247, 0.08);
+    border-color: var(--clr-accent2);
+  }
+}
+
 .column.clickable:active {
   background: rgba(79, 195, 247, 0.08);
   border-color: var(--clr-accent2);

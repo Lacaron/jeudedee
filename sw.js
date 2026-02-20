@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jeudedee-0.40';
+const CACHE_NAME = 'jeudedee-0.41';
 
 const ASSETS = [
   './',
